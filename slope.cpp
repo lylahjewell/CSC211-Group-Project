@@ -18,5 +18,6 @@ int main(){
     double a = 10;
     double b = 0;
     CalcSlope(a, b);
+    cout << endl;
     return 0;
 }
