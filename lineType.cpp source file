@@ -1,0 +1,85 @@
+#include "lineType.h"
+#include <cmath>
+
+const double EPS = 1.0e-8;
+
+lineType::lineType() {
+    a = 0.0;
+    b = 0.0;
+    c = 0.0;
+}
+
+lineType::lineType(double A, double B, double C) {
+    a = A;
+    b = B;
+    c = C;
+}
+
+void lineType::setLine(double A, double B, double C) {
+    a = A;
+    b = B;
+    c = C;
+}
+
+void lineType::getCoefficients(double& A, double& B, double& C) const {
+    A = a;
+    B = b;
+    C = c;
+}
+
+double lineType::getSlope() const {
+    // slope m from a*x + b*y = c  ->  y = (-a/b)x + (c/b)
+    // vertical line when b == 0 (slope is undefined)
+    if (fabs(b) < EPS) {
+        // could also throw or handle differently; just return a large number
+        return 1.0e30;
+    }
+    return -a / b;
+}
+
+bool lineType::isVertical() const {
+    return fabs(b) < EPS;
+}
+
+bool lineType::isHorizontal() const {
+    return fabs(a) < EPS;
+}
+
+bool lineType::isParallel(const lineType& other) const {
+    // Two lines a1x + b1y = c1 and a2x + b2y = c2 are parallel if
+    // a1*b2 - a2*b1 = 0  (same slope)
+    double det = a * other.b - other.a * b;
+    return fabs(det) < EPS;
+}
+
+bool lineType::isPerpendicular(const lineType& other) const {
+    // Direction vector of line: (b, -a).
+    // Two lines are perpendicular if direction1 ⋅ direction2 = 0
+    // which gives: a1*a2 + b1*b2 = 0
+    double dotNormals = a * other.a + b * other.b;
+    return fabs(dotNormals) < EPS;
+}
+
+bool lineType::intersectionPoint(const lineType& other, double& x, double& y) const {
+    // Solve:
+    // a*x + b*y = c
+    // a2*x + b2*y = c2
+    double a1 = a, b1 = b, c1 = c;
+    double a2 = other.a, b2 = other.b, c2 = other.c;
+
+    double det = a1 * b2 - a2 * b1;
+
+    if (fabs(det) < EPS) {
+        // Lines are parallel or coincident: no unique intersection
+        return false;
+    }
+
+    // Cramer's Rule
+    double detX = c1 * b2 - c2 * b1;
+    double detY = a1 * c2 - a2 * c1;
+
+    x = detX / det;
+    y = detY / det;
+
+    return true;
+}
