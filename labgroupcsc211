@@ -1,0 +1,274 @@
+#include <iostream>
+#include <fstream>
+#include <cmath>
+#include <vector>
+#include <limits>
+#include "lineType.h"
+
+using namespace std;
+
+const double EPS = 1.0e-6;
+
+struct Point {
+    double x;
+    double y;
+};
+
+double distanceSquared(const Point& p1, const Point& p2) {
+    double dx = p1.x - p2.x;
+    double dy = p1.y - p2.y;
+    return dx * dx + dy * dy;
+}
+
+bool approxEqual(double x, double y) {
+    return fabs(x - y) < EPS;
+}
+
+// load all lines (a,b,c) from the file into a vector
+void loadLines(const string& fileName, vector<lineType>& lines) {
+    ifstream inFile(fileName.c_str());
+    if (!inFile) {
+        cout << "could not open " << fileName << endl;
+        return;
+    }
+
+    double a, b, c;
+    while (inFile >> a >> b >> c) {
+        lineType L(a, b, c);
+        lines.push_back(L);
+    }
+
+    inFile.close();
+}
+
+// show all lines with their number
+void showLines(const vector<lineType>& lines) {
+    if (lines.empty()) {
+        cout << "no lines loaded\n\n";
+        return;
+    }
+
+    for (size_t i = 0; i < lines.size(); i++) {
+        double a, b, c;
+        lines[i].getCoefficients(a, b, c);
+        cout << (i + 1) << ": " << a << "x + " << b << "y = " << c << endl;
+    }
+    cout << endl;
+}
+
+// check all pairs and print the ones that are parallel
+void showParallel(const vector<lineType>& lines) {
+    if (lines.size() < 2) {
+        cout << "need at least 2 lines\n\n";
+        return;
+    }
+
+    bool any = false;
+    for (size_t i = 0; i < lines.size(); i++) {
+        for (size_t j = i + 1; j < lines.size(); j++) {
+            if (lines[i].isParallel(lines[j])) {
+                double a1, b1, c1;
+                double a2, b2, c2;
+                lines[i].getCoefficients(a1, b1, c1);
+                lines[j].getCoefficients(a2, b2, c2);
+
+                cout << "lines " << (i + 1) << " and " << (j + 1) << " are parallel:\n";
+                cout << "  " << a1 << "x + " << b1 << "y = " << c1 << endl;
+                cout << "  " << a2 << "x + " << b2 << "y = " << c2 << endl;
+                cout << endl;
+                any = true;
+            }
+        }
+    }
+
+    if (!any) {
+        cout << "no parallel pairs\n\n";
+    }
+}
+
+// compare 2 lines by index
+void compareLines(const vector<lineType>& lines) {
+    if (lines.size() < 2) {
+        cout << "need at least 2 lines\n\n";
+        return;
+    }
+
+    int i, j;
+    cout << "first line index (1 - " << lines.size() << "): ";
+    cin >> i;
+    cout << "second line index (1 - " << lines.size() << "): ";
+    cin >> j;
+
+    if (i < 1 || j < 1 || i >(int)lines.size() || j >(int)lines.size()) {
+        cout << "invalid index\n\n";
+        return;
+    }
+
+    lineType L1 = lines[i - 1];
+    lineType L2 = lines[j - 1];
+
+    double a1, b1, c1;
+    double a2, b2, c2;
+    L1.getCoefficients(a1, b1, c1);
+    L2.getCoefficients(a2, b2, c2);
+
+    cout << "\nline " << i << ": " << a1 << "x + " << b1 << "y = " << c1 << endl;
+    cout << "line " << j << ": " << a2 << "x + " << b2 << "y = " << c2 << endl;
+
+    bool v1 = L1.isVertical();
+    bool v2 = L2.isVertical();
+
+    if (v1) cout << "line " << i << " is vertical\n";
+    if (v2) cout << "line " << j << " is vertical\n";
+    if (L1.isHorizontal()) cout << "line " << i << " is horizontal\n";
+    if (L2.isHorizontal()) cout << "line " << j << " is horizontal\n";
+
+    if (!v1) cout << "slope of line " << i << " = " << L1.getSlope() << endl;
+    if (!v2) cout << "slope of line " << j << " = " << L2.getSlope() << endl;
+
+    cout << "parallel? " << (L1.isParallel(L2) ? "yes" : "no") << endl;
+    cout << "perpendicular? " << (L1.isPerpendicular(L2) ? "yes" : "no") << endl;
+
+    double x, y;
+    if (L1.intersectionPoint(L2, x, y)) {
+        cout << "intersection: (" << x << ", " << y << ")\n";
+    }
+    else {
+        cout << "no unique intersection\n";
+    }
+
+    cout << endl;
+}
+
+
+void checkQuads(const vector<lineType>& lines) {
+    if (lines.size() < 4) {
+        cout << "need at least 4 lines\n\n";
+        return;
+    }
+
+    int quadNum = 1;
+    for (size_t idx = 0; idx + 3 < lines.size(); idx += 4) {
+        lineType L1 = lines[idx];
+        lineType L2 = lines[idx + 1];
+        lineType L3 = lines[idx + 2];
+        lineType L4 = lines[idx + 3];
+
+        Point P1, P2, P3, P4;
+
+        bool ok1 = L1.intersectionPoint(L3, P1.x, P1.y);
+        bool ok2 = L1.intersectionPoint(L4, P2.x, P2.y);
+        bool ok3 = L2.intersectionPoint(L4, P3.x, P3.y);
+        bool ok4 = L2.intersectionPoint(L3, P4.x, P4.y);
+
+        cout << "quadrilateral " << quadNum << ":\n";
+
+        if (!(ok1 && ok2 && ok3 && ok4)) {
+            cout << "  bad intersections\n\n";
+            quadNum++;
+            continue;
+        }
+
+        double d1 = distanceSquared(P1, P2);
+        double d2 = distanceSquared(P2, P3);
+        double d3 = distanceSquared(P3, P4);
+        double d4 = distanceSquared(P4, P1);
+
+        bool opp1 = L1.isParallel(L2);
+        bool opp2 = L3.isParallel(L4);
+
+        bool isTrap = (opp1 ^ opp2);
+        bool isPara = (opp1 && opp2);
+        bool right = L1.isPerpendicular(L3);
+        bool allEq = approxEqual(d1, d2) &&
+            approxEqual(d2, d3) &&
+            approxEqual(d3, d4);
+
+        bool isRect = isPara && right;
+        bool isRhom = isPara && allEq;
+        bool isSq = isRect && isRhom;
+
+        if (isSq) {
+            cout << "  square\n";
+        }
+        else if (isRect) {
+            cout << "  rectangle\n";
+        }
+        else if (isRhom) {
+            cout << "  rhombus\n";
+        }
+        else if (isPara) {
+            cout << "  parallelogram\n";
+        }
+        else if (isTrap) {
+            cout << "  trapezoid\n";
+        }
+        else {
+            cout << "  other quad\n";
+        }
+
+        cout << endl;
+        quadNum++;
+    }
+}
+
+void addLine(vector<lineType>& lines) {
+    double a, b, c;
+    cout << "enter a b c: ";
+    cin >> a >> b >> c;
+    lineType L(a, b, c);
+    lines.push_back(L);
+    cout << "line " << lines.size() << " added\n\n";
+}
+
+int main() {
+    vector<lineType> lines;
+    loadLines("lines.txt", lines);
+
+    int choice = 0;
+
+    while (true) {
+        cout << "---- menu ----\n";
+        cout << "1. view all lines\n";
+        cout << "2. show parallel pairs\n";
+        cout << "3. compare 2 lines\n";
+        cout << "4. check quadrilaterals (groups of 4)\n";
+        cout << "5. add a line\n";
+        cout << "6. exit\n";
+        cout << "choice: ";
+        cin >> choice;
+        cout << endl;
+
+        if (!cin) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            cout << "bad input\n\n";
+            continue;
+        }
+
+        if (choice == 1) {
+            showLines(lines);
+        }
+        else if (choice == 2) {
+            showParallel(lines);
+        }
+        else if (choice == 3) {
+            compareLines(lines);
+        }
+        else if (choice == 4) {
+            checkQuads(lines);
+        }
+        else if (choice == 5) {
+            addLine(lines);
+        }
+        else if (choice == 6) {
+            cout << "bye\n";
+            break;
+        }
+        else {
+            cout << "invalid\n\n";
+        }
+    }
+
+    return 0;
+}
